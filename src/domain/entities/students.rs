@@ -9,6 +9,8 @@ pub struct StudentEntity {
     pub id: i32,
     pub first_name: String,
     pub last_name: String,
+    pub email: String,
+    pub age: i32,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }
@@ -19,6 +21,8 @@ impl StudentEntity {
         StudentModel {
             first_name: self.first_name.clone(),
             last_name: self.last_name.clone(),
+            email: self.email.clone(),
+            age: self.age,
             created_at: self.created_at,
             updated_at: self.updated_at
         }
@@ -31,6 +35,8 @@ impl StudentEntity {
 pub struct RegisterStudentEntity {
     pub first_name: String,
     pub last_name: String,
+    pub email: String,
+    pub age: i32,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }

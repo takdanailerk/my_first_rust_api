@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
-use axum::{extract::{Query, State}, http::StatusCode, response::IntoResponse, routing::{get, post}, Json, Router};
+use axum::{extract::{Path, Query, State}, http::StatusCode, response::IntoResponse, routing::{get, post}, Json, Router};
 
 use crate::{application::usecases::students::StudentUseCase, domain::{repositories::students::StudentRepository, value_objects::{response_model::ResponseObject, student_model::RegisterStudentModel}}, infrastructure::postgres::{postgres_connection::PgPoolSquad, repositories::students::StudentPostgres}};
 
@@ -12,6 +12,7 @@ pub fn routes (database_pool: Arc<PgPoolSquad>) -> Router {
 
     Router::new()
         .route("/", post(register))
+        .route("/:id", get(find_by_id))
         .route("/find-by-first-name", get(find_by_first_name))
         .route("/", get(get_all))
         .with_state(Arc::new(student_use_case))
@@ -32,11 +33,19 @@ where
             message: String::from("Register student successfully!"),
             result: Some(student)
         },
-        Err(error) => ResponseObject {
-            status_code: StatusCode::INTERNAL_SERVER_ERROR,
-            success: false,
-            message: error.to_string(),
-            result: None
+        Err(error) => match error.to_string().as_str() {
+            "E001" => ResponseObject {
+                status_code: StatusCode::CONFLICT,
+                success: false,
+                message: String::from("This email is already exists"),
+                result: None
+            },
+            _ => ResponseObject {
+                status_code: StatusCode::INTERNAL_SERVER_ERROR,
+                success: false,
+                message: error.to_string(),
+                result: None
+            }
         }
     }
 }
@@ -48,12 +57,12 @@ pub async fn find_by_first_name <T> (
 where
     T: StudentRepository + Send + Sync
 {
-    match student_use_case.find_by_first_name(params).await {
-        Ok(student) => ResponseObject {
+    match student_use_case.find_by_first_name(&params).await {
+        Ok(students) => ResponseObject {
             status_code: StatusCode::OK,
             success: true,
             message: String::from("Get student by first name successfully!"),
-            result: Some(student)
+            result: Some(students)
         },
         Err(error) => match error.to_string().as_str() {
             "E001" => ResponseObject {
@@ -90,6 +99,37 @@ where
             success: false,
             message: error.to_string(),
             result: None
+        }
+    }
+}
+
+pub async fn find_by_id <T> (
+    State(student_use_case): State<Arc<StudentUseCase<T>>>,
+    Path(id): Path<i32>
+) -> impl IntoResponse
+where
+    T: StudentRepository + Send + Sync
+{
+    match student_use_case.find_by_id(&id).await {
+        Ok(student) => ResponseObject {
+            status_code: StatusCode::OK,
+            success: true,
+            message: String::from("Get student by id successfully!"),
+            result: Some(student)
+        },
+        Err(error) => match error.to_string().as_str() {
+            "E001" => ResponseObject {
+                status_code: StatusCode::NOT_FOUND,
+                success: false,
+                message: String::from("Not found this student by id"),
+                result: None
+            },
+            _ => ResponseObject {
+                status_code: StatusCode::INTERNAL_SERVER_ERROR,
+                success: false,
+                message: error.to_string(),
+                result: None
+            }
         }
     }
 }

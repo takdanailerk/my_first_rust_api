@@ -26,6 +26,15 @@ where
         &self,
         register_student_model: RegisterStudentModel
     ) -> Result<StudentModel> {
+
+        match self.student_repository.find_by_email(&register_student_model.email).await {
+            std::result::Result::Ok(_) => return Err(anyhow::anyhow!("E001")),
+            Err(error) => match error.to_string().as_str() {
+                "Record not found" => (),
+                _ => return Err(error)
+            }
+        }
+
         let register_entity = register_student_model.to_entity();
 
         let student = self.student_repository.register(register_entity).await?;
@@ -37,22 +46,20 @@ where
 
     pub async fn find_by_first_name (
         &self,
-        params: HashMap<String, String>
-    ) -> Result<StudentModel> {
+        params: &HashMap<String, String>
+    ) -> Result<Vec<StudentModel>> {
 
-        let mut first_name: String;
+        let first_name = match params.get("first_name") {
+            Some(first_name_param) => first_name_param.to_string(),
+            None => return Err(anyhow::anyhow!("E001")),
+        };
 
-        if let Some(first_name_param) = params.get("first_name") {
-            first_name = first_name_param.to_string();
-        } else {
-            return Err(anyhow::anyhow!("E001"));
-        }
+        let student_entities = self.student_repository.find_by_first_name(first_name.as_str()).await?;
 
-        let student_entity = self.student_repository.find_by_first_name(first_name).await?;
+        let student_models = student_entities
+            .into_iter().map(|student_entity| student_entity.to_model()).collect();
 
-        let student_model = student_entity.to_model();
-
-        Ok(student_model)
+        Ok(student_models)
 
     }
 
@@ -66,6 +73,22 @@ where
         }
 
         Ok(students)
+    }
+
+    pub async fn find_by_id (&self, id: &i32) -> Result<StudentModel> {
+        let result = self.student_repository.find_by_id(id).await;
+
+        match result {
+            std::result::Result::Ok(_) => (),
+            Err(error) => match error.to_string().as_str() {
+                "Record not found" => return Err(anyhow::anyhow!("E001")),
+                _ => return Err(error)
+            }
+        };
+
+        let student_model = result?.to_model();
+
+        Ok(student_model)
     }
 
 }
