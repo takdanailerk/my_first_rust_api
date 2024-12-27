@@ -7,6 +7,7 @@ use tracing::{error, info};
 #[tokio::main]
 async fn main() {
     
+    // This is tracing subscriber
     tracing_subscriber::fmt().with_max_level(tracing::Level::DEBUG).init();
 
     let dotenvy_env = match config_loader::load() {
